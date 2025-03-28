@@ -38,7 +38,7 @@ options.add_experimental_option("prefs", {
     "directory_upgrade": True,
     "safebrowsing.enabled": True
 })
-# options.add_argument("--start-minimized")
+
 options.add_argument("--headless=new")  # Можно закомментировать строку если хотите смотреть как в браузере кнопочки нажимаются
 service = Service(executable_path=CHROMEDRIVER_PATH)
 driver = webdriver.Chrome(service=service, options=options)
@@ -59,31 +59,48 @@ def get_anime_title():
 
 # === Получить номер текущего эпизода ===
 def get_current_episode_number():
+    prev_num, next_num = None, None
+
     try:
         prev_btn = driver.find_element(By.CSS_SELECTOR, "div.m-select-sibling-episode a i.left")
-        next_btn = driver.find_element(By.CSS_SELECTOR, "div.m-select-sibling-episode a i.right")
-
         prev_text = prev_btn.find_element(By.XPATH, "..").text.strip()
-        next_text = next_btn.find_element(By.XPATH, "..").text.strip()
-
-        prev_num = int(re.search(r'\d+', prev_text).group()) if prev_text else 0
-        next_num = int(re.search(r'\d+', next_text).group()) if next_text else 0
-
-        if prev_num and next_num:
-            return (prev_num + next_num) // 2
-        elif next_num:
-            return next_num - 1
-        elif prev_num:
-            return prev_num + 1
+        prev_num = int(re.search(r'\d+', prev_text).group()) if prev_text else None
     except:
         pass
-    return 1
+
+    try:
+        next_btn = driver.find_element(By.CSS_SELECTOR, "div.m-select-sibling-episode a i.right")
+        next_text = next_btn.find_element(By.XPATH, "..").text.strip()
+        next_num = int(re.search(r'\d+', next_text).group()) if next_text else None
+    except:
+        pass
+
+    if prev_num is not None and next_num is not None:
+        return (prev_num + next_num) // 2
+    elif next_num is not None:
+        return next_num - 1
+    elif prev_num is not None:
+        return prev_num + 1
+    else:
+        return 1
+
 
 # === Перейти к следующей серии ===
 def go_to_next_episode():
     try:
+        current_url = driver.current_url
+
         next_btn = driver.find_element(By.CSS_SELECTOR, "div.m-select-sibling-episode a i.right")
         next_btn.find_element(By.XPATH, "..").click()
+
+        # Ждём пока изменится URL
+        WebDriverWait(driver, 10).until(EC.url_changes(current_url))
+
+        # Ждём появления блока загрузки видео как индикатора, что всё прогрузилось
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "m-translation-view-download"))
+        )
+        
         return True
     except:
         return False
@@ -175,7 +192,7 @@ def extract_download_links():
 
         if not go_to_next_episode():
             break
-        time.sleep(2)
+        time.sleep(3)
 
     return links
 
