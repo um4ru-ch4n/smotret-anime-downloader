@@ -20,15 +20,16 @@ from tqdm import tqdm
 
 # === Константы ===
 LOGIN_URL = "https://smotret-anime.online/users/login"  # login URL
-LOGIN = ""  # your login for authorization
-PASSWORD = ""    # your password
-ANIME_URL = "https://smotret-anime.online/catalog/naruto-shippuuden-4530/128-seriya-91114/russkie-subtitry-732269"  # Ссылка на серию аниме начиная с которой нужно начинать скачивать
-DOWNLOAD_DIR = "downloads"  # Папка, куда будут качаться файлы
+LOGIN = "17515560@mail.ru"  # your login for authorization
+PASSWORD = "1751556"    # your password
+ANIME_URL = "https://smotret-anime.online/catalog/xian-ni-34009/ona-5-seriya-312811/russkie-subtitry-4830656"  # Ссылка на серию аниме начиная с которой нужно начинать скачивать
+AMOUNT_EPISODES_TO_DOWNLOAD = 10  # Сколько серий нужно скачать начиная с ANIME_URL
+DOWNLOAD_DIR = "D:\\Downloads"  # Папка, куда будут качаться файлы
 CHROMEDRIVER_PATH = "./chromedriver.exe"  # Путь к chromedriver
 TRANSLATION_TYPE = "Русские субтитры"  # Пример: Raw, Японские субтитры, Английские субтитры, Английская озвучка, Украинская озвучка, Русские субтитры или Озвучка
-TRANSLATION_VARIANTS = ["yakusub studio", "yakusub studio (bd)", "Bokusatsu Shiden Team"]  # Список предпочитаемых озвучек/субтитров
+TRANSLATION_VARIANTS = ["FSG N.N. Азия", "Crunchyroll", "AniLibria", "yakusub studio", "yakusub studio (bd)", "Bokusatsu Shiden Team"]  # Список предпочитаемых озвучек/субтитров
 
-MAX_CONCURRENT_DOWNLOADS = 5    # Одновременное кол-во скачиваний. Рекомендуется ставить не более 5
+MAX_CONCURRENT_DOWNLOADS = 2    # Одновременное кол-во скачиваний. Рекомендуется ставить не более 5
 
 # === Selenium Setup ===
 options = Options()
@@ -153,8 +154,9 @@ def select_translation(driver, wait):
 # === Собрать ссылки на все серии ===
 def extract_download_links():
     links = []
+    episodes_collected = 0
 
-    while True:
+    while episodes_collected < AMOUNT_EPISODES_TO_DOWNLOAD:
         episode_num = get_current_episode_number()
 
         # ⚙️ Автоматический выбор перевода и варианта
@@ -189,9 +191,15 @@ def extract_download_links():
         })
 
         print(f"🔗 Серия {episode_num}: ссылки собраны")
+        episodes_collected += 1
+
+        if episodes_collected >= AMOUNT_EPISODES_TO_DOWNLOAD:
+            break
 
         if not go_to_next_episode():
+            print("⚠️ Дальше серий нет — остановка сбора")
             break
+
         time.sleep(3)
 
     return links
