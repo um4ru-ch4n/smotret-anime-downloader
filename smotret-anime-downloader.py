@@ -19,18 +19,18 @@ from tqdm import tqdm
 
 
 # === Константы ===
-LOGIN_URL = "https://smotret-anime.online/users/login"  # login URL
+LOGIN_URL = "https://smotret-anime.org/users/login"  # login URL
 LOGIN = "17515560@mail.ru"  # your login for authorization
 PASSWORD = "1751556"    # your password
-ANIME_URL = "https://smotret-anime.online/catalog/xian-ni-34009/ona-5-seriya-312811/russkie-subtitry-4830656"  # Ссылка на серию аниме начиная с которой нужно начинать скачивать
-AMOUNT_EPISODES_TO_DOWNLOAD = 10  # Сколько серий нужно скачать начиная с ANIME_URL
-DOWNLOAD_DIR = "D:\\Downloads"  # Папка, куда будут качаться файлы
-CHROMEDRIVER_PATH = "./chromedriver.exe"  # Путь к chromedriver
+ANIME_URL = "https://smotret-anime.org/catalog/hikaru-ga-shinda-natsu-36670/1-seriya-359845/russkie-subtitry-5474676"  # Ссылка на серию аниме начиная с которой нужно начинать скачивать
+AMOUNT_EPISODES_TO_DOWNLOAD = 100  # Сколько серий нужно скачать начиная с ANIME_URL
+DOWNLOAD_DIR = "/Users/umr/Downloads"  # Папка, куда будут качаться файлы
+CHROMEDRIVER_PATH = "./chromedriver"  # Путь к chromedriver
 TRANSLATION_TYPE = "Русские субтитры"  # Пример: Raw, Японские субтитры, Английские субтитры, Английская озвучка, Украинская озвучка, Русские субтитры или Озвучка
-TRANSLATION_VARIANTS = ["FSG N.N. Азия", "Crunchyroll", "AniLibria", "yakusub studio", "yakusub studio (bd)", "Bokusatsu Shiden Team"]  # Список предпочитаемых озвучек/субтитров
+TRANSLATION_VARIANTS = ["MedusaSub", "Crunchyroll", "yakusub studio", "yakusub studio (bd)", "Wakanim (BD)" "AniLibria", "Kazoku Project",  "SovetRomantica", "Bokusatsu Shiden Team"]  # Список предпочитаемых озвучек/субтитров
 
 MAX_CONCURRENT_DOWNLOADS = 2    # Одновременное кол-во скачиваний. Рекомендуется ставить не более 5
-
+ 
 # === Selenium Setup ===
 options = Options()
 options.add_experimental_option("prefs", {
@@ -40,7 +40,7 @@ options.add_experimental_option("prefs", {
     "safebrowsing.enabled": True
 })
 
-options.add_argument("--headless=new")  # Можно закомментировать строку если хотите смотреть как в браузере кнопочки нажимаются
+# options.add_argument("--headless=new")  # Можно закомментировать строку если хотите смотреть как в браузере кнопочки нажимаются
 service = Service(executable_path=CHROMEDRIVER_PATH)
 driver = webdriver.Chrome(service=service, options=options)
 wait = WebDriverWait(driver, 20)
@@ -167,7 +167,7 @@ def extract_download_links():
 
         try:
             container = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "m-translation-view-download")))
-            for quality in ["Скачать видео (1080p)", "Скачать видео (720p)", "Скачать видео (536p)", "Скачать видео (406p)", "Скачать видео (360p)", "Скачать видео (356p)"]:
+            for quality in ["Скачать видео (1080p)", "Скачать видео (720p)", "Скачать видео (536p)", "Скачать видео (480p)", "Скачать видео (406p)", "Скачать видео (360p)", "Скачать видео (356p)"]:
                 try:
                     el = container.find_element(By.XPATH, f".//a[normalize-space(text())='{quality}']")
                     video_link = el.get_attribute("href")
@@ -319,9 +319,6 @@ def load_episode_data(anime_folder):
 
 # === Основной запуск ===
 def main():
-    login()
-    time.sleep(3)
-
     driver.get(ANIME_URL)
 
     # Получаем название и создаём папку
@@ -334,6 +331,10 @@ def main():
 
     if not episodes:
         episodes = extract_download_links()
+
+        login()
+        time.sleep(3)
+
         cookies = {c['name']: c['value'] for c in driver.get_cookies()}
         save_episode_data(anime_folder, episodes, cookies)
         driver.quit()
