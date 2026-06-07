@@ -22,12 +22,12 @@ from tqdm import tqdm
 LOGIN_URL = "https://smotret-anime.org/users/login"  # login URL
 LOGIN = "17515560@mail.ru"  # your login for authorization
 PASSWORD = "1751556"    # your password
-ANIME_URL = "https://smotret-anime.org/catalog/hikaru-ga-shinda-natsu-36670/1-seriya-359845/russkie-subtitry-5474676"  # Ссылка на серию аниме начиная с которой нужно начинать скачивать
+ANIME_URL = "https://smotret-anime.org/catalog/kakegurui-18696/1-seriya-184007/russkie-subtitry-3156683"  # Ссылка на серию аниме начиная с которой нужно начинать скачивать
 AMOUNT_EPISODES_TO_DOWNLOAD = 100  # Сколько серий нужно скачать начиная с ANIME_URL
 DOWNLOAD_DIR = "/Users/umr/Downloads"  # Папка, куда будут качаться файлы
 CHROMEDRIVER_PATH = "./chromedriver"  # Путь к chromedriver
 TRANSLATION_TYPE = "Русские субтитры"  # Пример: Raw, Японские субтитры, Английские субтитры, Английская озвучка, Украинская озвучка, Русские субтитры или Озвучка
-TRANSLATION_VARIANTS = ["MedusaSub", "Crunchyroll", "yakusub studio", "yakusub studio (bd)", "Wakanim (BD)" "AniLibria", "Kazoku Project",  "SovetRomantica", "Bokusatsu Shiden Team"]  # Список предпочитаемых озвучек/субтитров
+TRANSLATION_VARIANTS = ["Nesitach & Stan WarHammer (BD)", "SovetRomantica", "MedusaSub", "Crunchyroll", "yakusub studio", "yakusub studio (bd)", "Wakanim (BD)", "AniLibria", "Kazoku Project", "Bokusatsu Shiden Team"]  # Список предпочитаемых озвучек/субтитров
 
 MAX_CONCURRENT_DOWNLOADS = 2    # Одновременное кол-во скачиваний. Рекомендуется ставить не более 5
  
@@ -218,58 +218,103 @@ def format_size(size_bytes):
     return f"{size:.2f} {size_name[i]}"
 
 
+def get_remote_size(url, cookies):
+    try:
+        with requests.get(url, cookies=cookies, stream=True, timeout=10) as r:
+            r.raise_for_status()
+            cl = int(r.headers.get('Content-Length', 0))
+            return cl if cl > 0 else None
+    except Exception as e:
+        print(f"⚠️ Не удалось определить размер удалённого файла: {e}")
+        return None
+
+
 def is_file_valid(url, filename, cookies):
     if not os.path.exists(filename):
         return False
-
-    try:
-        with requests.get(url, cookies=cookies, stream=True, timeout=2) as r:
-            r.raise_for_status()
-            content_length = int(r.headers.get('Content-Length', 0))
-            if content_length == 0:
-                print(f"⚠️ Content-Length не найден для {filename}")
-                return False
-            file_size = os.path.getsize(filename)
-            if file_size == content_length:
-                return True
-            else:
-                print(f"⚠️ Размер файла не совпадает: {format_size(file_size)} != {format_size(content_length)}")
-                return False
-    except Exception as e:
-        print(f"⚠️ Не удалось определить размер удалённого файла: {e}")
+    remote_size = get_remote_size(url, cookies)
+    if remote_size is None:
         return False
+    file_size = os.path.getsize(filename)
+    if file_size == remote_size:
+        return True
+    print(f"⚠️ Размер файла не совпадает: {format_size(file_size)} != {format_size(remote_size)}")
+    return False
 
 
-def download_file(url, filename, cookies, retries=3):
+def download_file(url, filename, cookies, retries=10):
     if is_file_valid(url, filename, cookies):
         print(f"⏭ Пропускаем (файл целый): {filename}")
         return
 
+    remote_size = get_remote_size(url, cookies)
+
     for attempt in range(1, retries + 1):
+        # Сколько уже скачано (для resume через Range)
+        existing = os.path.getsize(filename) if os.path.exists(filename) else 0
+
+        # Если файл уже не меньше remote_size — он либо целый, либо локально «больше», что повод стартовать заново
+        if remote_size is not None and existing >= remote_size:
+            if existing == remote_size:
+                print(f"✅ Уже скачан: {filename}")
+                return
+            print(f"⚠️ Локальный файл больше удалённого ({format_size(existing)} > {format_size(remote_size)}), начинаем заново")
+            os.remove(filename)
+            existing = 0
+
+        headers = {}
+        mode = 'wb'
+        if existing > 0:
+            headers['Range'] = f'bytes={existing}-'
+            mode = 'ab'
+
         try:
-            with requests.get(url, cookies=cookies, stream=True, timeout=(10, 120)) as r:
-                r.raise_for_status()
-                total_size = int(r.headers.get('Content-Length', 0))
+            with requests.get(url, cookies=cookies, headers=headers, stream=True, timeout=(10, 120)) as r:
+                # Если запросили Range, но сервер вернул 200 — он проигнорировал Range, начинаем с нуля
+                if existing > 0 and r.status_code == 200:
+                    print(f"ℹ️ Сервер проигнорировал Range для {os.path.basename(filename)} — скачиваем заново")
+                    mode = 'wb'
+                    existing = 0
+                else:
+                    r.raise_for_status()
+
+                # Считаем общий размер: для 206 Content-Length — это остаток
+                content_length = int(r.headers.get('Content-Length', 0))
+                total_size = existing + content_length if r.status_code == 206 else content_length
+                if remote_size is None and total_size:
+                    remote_size = total_size
+
                 block_size = 8192
                 progress = tqdm(
-                    total=total_size,
+                    total=total_size or None,
+                    initial=existing,
                     unit='B',
                     unit_scale=True,
                     unit_divisor=1024,
                     desc=os.path.basename(filename),
                     leave=False
                 )
-                with open(filename, 'wb') as f:
+                with open(filename, mode) as f:
                     for chunk in r.iter_content(chunk_size=block_size):
                         if chunk:
                             f.write(chunk)
                             progress.update(len(chunk))
                 progress.close()
+
+            # Проверка целостности после докачивания
+            final_size = os.path.getsize(filename)
+            if remote_size is not None and final_size != remote_size:
+                raise IncompleteRead(partial=final_size, expected=remote_size - final_size)
+
             print(f"✅ Скачан: {filename}")
             return
         except (IncompleteRead, ReadTimeout, ConnectionError) as e:
-            print(f"⚠️ Попытка {attempt}/{retries} не удалась при скачивании {filename}: {e}")
-            time.sleep(2)
+            downloaded_now = os.path.getsize(filename) if os.path.exists(filename) else 0
+            print(f"⚠️ Попытка {attempt}/{retries} не удалась при скачивании {filename} (скачано {format_size(downloaded_now)}): {e}")
+            if attempt < retries:
+                delay = min(5 * (2 ** (attempt - 1)), 300)
+                print(f"⏳ Ждём {delay} сек перед следующей попыткой…")
+                time.sleep(delay)
         except Exception as e:
             print(f"❌ Неизвестная ошибка при скачивании {filename}: {e}")
             break
