@@ -22,12 +22,27 @@ from tqdm import tqdm
 LOGIN_URL = "https://smotret-anime.org/users/login"  # login URL
 LOGIN = "17515560@mail.ru"  # your login for authorization
 PASSWORD = "1751556"    # your password
-ANIME_URL = "https://smotret-anime.org/catalog/kakegurui-18696/1-seriya-184007/russkie-subtitry-3156683"  # Ссылка на серию аниме начиная с которой нужно начинать скачивать
+# Ссылка на серию аниме начиная с которой нужно начинать скачивать
+ANIME_URL = "https://smotret-anime.org/catalog/super-cub-22621/1-seriya-254145/russkie-subtitry-4420872"
 AMOUNT_EPISODES_TO_DOWNLOAD = 100  # Сколько серий нужно скачать начиная с ANIME_URL
 DOWNLOAD_DIR = "/Users/umr/Downloads"  # Папка, куда будут качаться файлы
 CHROMEDRIVER_PATH = "./chromedriver"  # Путь к chromedriver
 TRANSLATION_TYPE = "Русские субтитры"  # Пример: Raw, Японские субтитры, Английские субтитры, Английская озвучка, Украинская озвучка, Русские субтитры или Озвучка
-TRANSLATION_VARIANTS = ["Nesitach & Stan WarHammer (BD)", "SovetRomantica", "MedusaSub", "Crunchyroll", "yakusub studio", "yakusub studio (bd)", "Wakanim (BD)", "AniLibria", "Kazoku Project", "Bokusatsu Shiden Team"]  # Список предпочитаемых озвучек/субтитров
+TRANSLATION_VARIANTS = [
+    "Wakanim",
+    "SovetRomantica",
+    "Crisalide & DARio & Gilushka & Rain lover & Стефан",
+    "Dreamers Team",
+    "Nesitach & Stan WarHammer (BD)",
+    "Crunchyroll",
+    "AniLibria",
+    "MedusaSub",
+    "yakusub studio",
+    "yakusub studio (bd)",
+    "Wakanim (BD)",
+    "Kazoku Project",
+    "Bokusatsu Shiden Team",
+]  # Список предпочитаемых озвучек/субтитров
 
 MAX_CONCURRENT_DOWNLOADS = 2    # Одновременное кол-во скачиваний. Рекомендуется ставить не более 5
  
